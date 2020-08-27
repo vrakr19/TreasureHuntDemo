@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <main role="main" class="inner cover">
+    {% if messages %}
+    <ul class="messages">
+        {% for message in messages %}
+        <div{% if message.tags %} class="alert alert-{{ message.tags }}"{% endif %}><strong>{{ message }}</strong></div>
+        {% endfor %}
+    </ul>
+    {% endif %}
+    {% if msg %}
+    <div class="alert alert-success">
+      <strong>{{msg}}</strong>
+    </div>
+    {% endif %}
+    <h1 class="cover-heading">Smash and Leap</h1>
+    <p class="lead">
+      An Online treasure hunt <br>
+      Fellow bees! The hibernation is over. Shed your slough of magnanimous condescension and the bridled contumely 
+      of the ignorance that kept you from soaring so far. So Don your thinking hats. 
+      Turn into Sherlock Holmes. An event where you will have to rack your brains to decode the mystery 
+      and get your key to the prize. Gear up for a stimulating mental workout as Version'18 presents to you Smash and Leap. 
+      The winner is decided according to the leader board.  
+    </p>
+    <p class="lead">
+      <a href="{% url 'social:begin' 'facebook' %}" class="btn btn-lg btn-secondary">Login with Facebook</a>
+    </p>
+  </main>
+{% endblock %}

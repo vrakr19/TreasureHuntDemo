@@ -1,0 +1,216 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="loader">
+    <img src="http://localhost:8000/static/img/loader.gif"/>
+</div>
+  <div class="container game-container">
+      <div class="row">
+        <div class="col-sm-12 col-md-6">
+            <h2>Hello {{ username }}!</h2>
+        </div>
+        <div class="col-sm-12 col-md-6">
+            <h3><strong>Level : </strong><span id="level">{{ level }}</span></h3>
+        </div>
+        {% if messages %}
+        <div class="col-sm-12 col-md-12">
+            <ul class="messages">
+                {% for message in messages %}
+                <div
+                {% if message.tags %}
+                    {% if message.tags == 'error' %}
+                        class ="alert alert-danger mx-auto"
+                    {% else %}
+                        class="alert alert-{{ message.tags }} mx-auto"
+                    {% endif %}
+                {% endif %}><strong>{{ message }}</strong></div>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        <div class="success col-sm-12 text-center">
+        </div>
+        <div class="error col-sm-12 text-center">
+        </div>
+      </div>
+    <div class="row question">
+        <div class="col-sm-12 col-md-12 center-align">
+            {% if question.ques_type == "audio" %}
+                <audio controls="controls" id="aud-ques" src="{{ question.link }}">
+                    Your browser does not support audio element.
+                </audio>
+            {% endif %}
+            {% if question.ques_type == "video" %}
+                <video controls="controls" id="vid-ques" src="{{ question.link }}">
+                    Your browser does not support video element.
+                </video>
+            {% endif %}
+            {% if question.ques_type == "image" %}
+                <img class="img-fluid" id="img-ques" src="{{ question.link }}"/>
+            {% endif %}
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-sm-12 col-md-12">
+            <form method = "POST" id="ansform" action = '.'>
+                {% csrf_token %}
+                <br>
+                <div class="row">
+                    <div class="col-sm-12">
+                        {{form.answer}}
+                    </div>
+                    <br>
+                    <div class="col-sm-12">
+                        <button class="btn btn-info button" type='submit'>Submit</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+  </main>
+  <div class="container hint-container">
+    <div class="row justify-content-md-center">
+        <div class="col-sm-12 col-md-8">
+            <h1>Hints</h1>
+        </div>
+        <div class="col-sm-12 col-md-4">
+            <button class="btn btn-primary hint-btn">Get Hint</button>
+        </div>
+        <div class="col-sm-12" id="hint_box">
+        </div>
+        <div class="col-sm-12" id="results"></div>
+    </div>
+</div>
+{% endblock %}
+
+{%block custom_js %}
+    <script>
+        $(function() {
+            function success(json){
+                // console.log(json);
+                // console.log("success");
+                if(json.blocked){
+                    window.location.reload();
+                }
+                if(json.timeout){
+                    window.location.reload();
+                }
+                if(json.error){
+                    $('.btn-info').css('display','block');
+                    $('.btn-info').addClass('top-space');
+                    $('.loader').css('display','none');
+                    var error_elem = '<div class="alert alert-danger mx-auto"><strong>'+json.error+'</strong></div>';
+                    $('.error').html(error_elem);
+                    setTimeout(function(){
+                        $('.error').html('');
+                    },3000);
+                }
+                else if(json.success){
+                    var success_elem = '<div class="alert alert-success mx-auto"><strong>'+json.success+'</strong></div>';
+                    $('.success').html(success_elem);
+                    setTimeout(function(){
+                        window.location.reload();
+                    },500);
+                }
+            }
+            $('#ansform').on('submit',function(event){
+                $('.loader').css('display','block');
+                event.preventDefault();
+                console.log("Form submitted");
+                $('.btn-info').css('display','none');
+                var user_answer = $('#id_answer').val().substring(0,50);
+                $('#id_answer').val('');
+                $.ajax({
+                    url : "{% url 'answer_view' %}",
+                    type : "POST",
+                    data : { answer : user_answer },
+                    success : function(json){
+                        localStorage.setItem("json",json);
+                        success(json);
+                    },
+                    error : function(xhr,errmsg,err) {
+                        $('#results').html("<div class='alert alert-danger radius' data-alert>Oops! We have encountered an error: "+errmsg+
+                            " <a href='#' class='close'>&times;</a></div>"); // add the error to the dom
+                        // console.log(xhr.status + ": " + xhr.responseText); // provide a bit more info about the error to the console
+                    }
+                })
+            });
+            function get_accessed_hints(){
+                $.ajax({
+                    url : "{% url 'hint_view' %}", // the endpoint
+                    // handle a successful response
+                    success : function(json) {
+                        // console.log(json); // log the returned json to the console
+                        response='';
+                        for(var i=0;i<json.hints.length;i++){
+                            if(json.hints[i]){
+                                response += '<li>'+json.hints[i]+'</li>';
+                            }
+                        }
+                        $('#hint_box').html(response);
+                        $('#results').html('<strong>'+json.custom_info+'</strong>');
+                        // console.log("success"); // another sanity check
+                    },
+                    // handle a non-successful response
+                    error : function(xhr,errmsg,err) {
+                        $('#results').html("<div class='alert alert-danger radius' data-alert>Oops! We have encountered an error: "+errmsg+
+                            " <a href='#' class='close'>&times;</a></div>"); // add the error to the dom
+                        // console.log(xhr.status + ": " + xhr.responseText); // provide a bit more info about the error to the console
+                    }
+                });
+            }
+            $('.hint-btn').click(function(){
+                get_accessed_hints();
+            });
+            // This function gets cookie with a given name
+            function getCookie(name) {
+                var cookieValue = null;
+                if (document.cookie && document.cookie != '') {
+                    var cookies = document.cookie.split(';');
+                    for (var i = 0; i < cookies.length; i++) {
+                        var cookie = jQuery.trim(cookies[i]);
+                        // Does this cookie string begin with the name we want?
+                        if (cookie.substring(0, name.length + 1) == (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+            var csrftoken = getCookie('csrftoken');
+            /*
+            The functions below will create a header with csrftoken
+            */
+            function csrfSafeMethod(method) {
+                // these HTTP methods do not require CSRF protection
+                return (/^(GET|HEAD|OPTIONS|TRACE)$/.test(method));
+            }
+            function sameOrigin(url) {
+                // test that a given url is a same-origin URL
+                // url could be relative or scheme relative or absolute
+                var host = document.location.host; // host + port
+                var protocol = document.location.protocol;
+                var sr_origin = '//' + host;
+                var origin = protocol + sr_origin;
+                // Allow absolute or scheme relative URLs to same origin
+                return (url == origin || url.slice(0, origin.length + 1) == origin + '/') ||
+                    (url == sr_origin || url.slice(0, sr_origin.length + 1) == sr_origin + '/') ||
+                    // or any other URL that isn't scheme relative or absolute i.e relative.
+                    !(/^(\/\/|http:|https:).*/.test(url));
+            }
+
+            $.ajaxSetup({
+                beforeSend: function(xhr, settings) {
+                    if (!csrfSafeMethod(settings.type) && sameOrigin(settings.url)) {
+                        // Send the token to same-origin, relative URLs only.
+                        // Send the token only if the method warrants CSRF protection
+                        // Using the CSRFToken value acquired earlier
+                        xhr.setRequestHeader("X-CSRFToken", csrftoken);
+                    }
+                }
+            });
+
+        });
+        // get_accessed_hints();
+    </script>
+{% endblock %}
